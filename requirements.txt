@@ -1,0 +1,12 @@
+# Su Linux installare prima tkinter con il gestore pacchetti di sistema:
+#   sudo apt install python3-tk   (Debian/Ubuntu)
+#   sudo dnf install python3-tkinter   (Fedora)
+
+customtkinter
+networkx
+numpy
+matplotlib
+scipy
+scikit-image
+pandas
+tqdm

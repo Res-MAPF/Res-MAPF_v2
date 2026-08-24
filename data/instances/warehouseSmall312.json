@@ -1,0 +1,1 @@
+{"grid": "warehouseSmall.map", "start_positions": [[2, 2]], "goal_positions": [[11, 3]], "k": 3, "m": 1, "h": 2, "selected_failtypes": ["high-level"]}
