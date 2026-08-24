@@ -1,15 +1,16 @@
-# k-resilient Multi-Agent Path Finding
+# Res-MAPF v2 — optimized baseline
 
-The repository contains the source code for the final Master thesis:
+> ⚠️ **Placeholder README** — full documentation coming soon.
 
-*DESIGN AND EVALUATION OF ALGORITHMS FOR RESILIENT MULTI-AGENT PATH FINDING*
+Part of the [Res-MAPF](https://github.com/Res-MAPF) organization — resilient multi-agent path finding.
 
-To start the program:
- - Import the project in an IDE and start the main function in: ```src/main.py```
- - From commandline:
-   - navigate to the project directory: ```cd resilient_mapf```
-   - run the main module: ```python -m src.main```
+**Version:** v2
+**Relation to other versions:** optimized baseline
 
-## Author:
-- Diego Rossi [Student ID: 724217]
+## Related repositories
 
+- [Res-MAPF_v3](https://github.com/Res-MAPF/Res-MAPF_v3)
+- [Res-MAPF_v2.1](https://github.com/Res-MAPF/Res-MAPF_v2.1)
+- [Res-MAPF_benchmark](https://github.com/Res-MAPF/Res-MAPF_benchmark)
+
+See the [organization homepage](https://github.com/Res-MAPF) for full project context and the thesis PDF.
