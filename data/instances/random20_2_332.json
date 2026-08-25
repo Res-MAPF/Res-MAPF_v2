@@ -1,1 +1,0 @@
-{"grid": "random20_2.map", "start_positions": [[2, 4], [14, 8], [16, 3]], "goal_positions": [[10, 3], [19, 6], [10, 1]], "k": 3, "m": 3, "h": 2, "selected_failtypes": ["topw", "individual"]}
