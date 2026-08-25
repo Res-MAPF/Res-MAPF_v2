@@ -1,7 +1,3 @@
-import signal
-import cProfile
-import pstats
-import io
 import time
 
 from src.domain.solver.solver_manager import solve_mapf
@@ -9,42 +5,10 @@ from src.utils.granular_profiler import get_profiler
 from src.utils.bottleneck_analyzer import BottleneckAnalyzer
 
 DEBUG = True
-class TimeoutException(Exception):
-    pass
 
 def debug_print(message):
     if DEBUG:
         print(message)
-
-def timeout_handler(signum, frame):
-    raise TimeoutException()
-
-def profile_code(func, *args, stdout_redirector=None, **kwargs):
-    import cProfile, pstats, io, sys
-
-    # Create a new profiler for each instance
-    pr = cProfile.Profile()
-
-    original_stdout = sys.stdout
-    if stdout_redirector is not None:
-        sys.stdout = stdout_redirector
-
-    try:
-        pr.clear()
-        pr.enable()
-        result = func(*args, **kwargs)
-        pr.disable()
-    finally:
-        # Reset the profiler
-        sys.setprofile(None)
-        if stdout_redirector is not None:
-            sys.stdout = original_stdout
-
-    s = io.StringIO()
-    ps = pstats.Stats(pr, stream=s).sort_stats("cumulative")
-    stats_dict = extract_stats(ps)
-
-    return result, stats_dict
 
 def solve_mapf_with_profiling(mapf_instance, robustness_params, search_params, stop_event=None):
     """
@@ -135,38 +99,6 @@ def solve_mapf_with_granular_profiling(mapf_instance, robustness_params, search_
         'analysis': analysis,
         'elapsed_time': elapsed_time
     }
-
-
-def extract_stats(ps):
-    functions_of_interest = {
-        "resplan_mapf": None,
-        "compute_plan_cbs": None,
-        "low_level_search_cbs": None,
-        "build_safe_interval_table": None,
-        "populate_hard_constraints_agent": None,
-        "populate_soft_constraints_agent": None,
-        "area_capacity_soft_constraints_agent": None,
-        "graph_modification_agent": None,
-        "compute_goal_times_agent": None,
-        "heuristic_computation": None,
-        "root_compute_low_level_solution": None,
-    }
-
-    extracted = {
-        key: {"ncalls": 0, "tottime": 0.0, "cumtime": 0.0}
-        for key in functions_of_interest
-    }
-
-    for func, (cc, nc, tt, ct, callers) in ps.stats.items():
-        filename, lineno, funcname = func
-        if funcname in functions_of_interest:
-            extracted[funcname] = {
-                "ncalls": nc,
-                "tottime": round(tt, 3),
-                "cumtime": round(ct, 3),
-                "mean_time": round(ct / nc, 5) if nc else 0,
-            }
-    return extracted
 
 
 def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance_info=None):
@@ -421,7 +353,7 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
         nesting_inflation = total_profiled_inclusive / total_profiled_exclusive
         report.append(f"- **Nesting Inflation Factor**: {nesting_inflation:.2f}× (due to nested profiling sections)\n")
     else:
-        report.append()
+        report.append("")
     
     report.append("*Note: Unaccounted time includes untracked code sections and profiling overhead.*\n")
     
@@ -430,7 +362,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
     report.append("| Component | Time (s) | Exclusive (s) | Calls | Avg Time (ms) | % of Exclusive |")
     report.append("|-----------|----------|---------------|-------|---------------|----------------|")
     
-    total_time = sum(comp['time'] for comp in components_breakdown.values())
     total_exclusive = sum(comp.get('exclusive', comp['time']) for comp in components_breakdown.values())
     
     for component_name in ['ResPlaN', 'CBS', 'SIPPS']:
@@ -462,7 +393,7 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
             avg_excl_ms = (excl_t / calls * 1000) if calls > 0 else 0
             pct = (excl_t / total_exclusive * 100) if total_exclusive > 0 else 0
             report.append(f"| {func_name} | {calls} | {inc_t:.4f} | {excl_t:.4f} | {avg_excl_ms:.2f} | {pct:.1f}% |")
-        except (TypeError, ValueError) as e:
+        except (TypeError, ValueError):
             report.append(f"| {func_name} | ERROR | ERROR | ERROR | ERROR | ERROR |")
     report.append("")
     
@@ -615,9 +546,8 @@ def save_profiling_report(markdown_content, test_set, instance_idx, map_name):
     Returns:
         Path to the saved file
     """
-    import os
     from pathlib import Path
-    
+
     # Create directory if it doesn't exist
     reports_dir = Path("data/profiling_reports")
     reports_dir.mkdir(parents=True, exist_ok=True)

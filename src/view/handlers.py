@@ -1,5 +1,4 @@
 import os
-import signal
 import sys
 import threading
 import time
@@ -12,7 +11,6 @@ from tkinter import filedialog
 import pickle
 
 from src.domain.generation import TEST_INSTANCES_DIR
-from src.utils.map_handler import load_map
 from src.utils.plan_io import (
     save_instance_to_file,
     load_instance_from_file,
@@ -23,7 +21,6 @@ from src.domain.MAPFInstance import MAPFInstance, RobustnessParams, SearchParams
 from src.view.grid_visualizer import GridVisualizer
 from src.utils.map_handler import load_map, build_graph
 from src.utils.profiling import solve_mapf_with_profiling, solve_mapf_with_granular_profiling
-from src.domain.solver.solver_manager import solve_mapf
 
 
 TIME_LIMIT = 3600
@@ -110,7 +107,7 @@ def configure_handlers(root, state, console_textbox):
                 vis_root = ctk.CTkToplevel()
                 vis_root.title(TITLE_SIMULATE)
                 vis_root.geometry(SIZE_SIMULATE)
-                app = GridVisualizer(vis_root, grid, mapf_instance, robustness_params, solution)
+                GridVisualizer(vis_root, grid, mapf_instance, robustness_params, solution)
 
     def handle_generate_instances():
         try:
@@ -162,7 +159,7 @@ def configure_handlers(root, state, console_textbox):
                 
                 def _timeout_watcher():
                     if not stop_event.wait(timeout=TIME_LIMIT):
-                        print(f"\n⏱ Timeout watcher: setting stop_event")
+                        print(f"\nTimeout watcher: setting stop_event")
                         stop_event.set()
                 
                 watcher = _threading.Thread(target=_timeout_watcher, daemon=True)
@@ -176,7 +173,7 @@ def configure_handlers(root, state, console_textbox):
                     # Check if we were stopped by the timeout watcher
                     if stop_event.is_set():
                         timed_out = True
-                        print(f"⚠️ Timeout reached after {elapsed_time:.2f}s")
+                        print(f"Warning: timeout reached after {elapsed_time:.2f}s")
                         #messagebox.showinfo("TIMEOUT", f"Timeout reached after {elapsed_time:.2f}s")
                         return
 
@@ -275,10 +272,8 @@ def handle_run_test(root, state):
     def _run_test_in_thread(selected_set, robustness_params, instances, selected_failtypes, enable_profiling):
         import time
         from datetime import datetime
-        import concurrent.futures
         from src.utils.map_handler import build_graph
         from src.domain.solver.Solution import Solution
-        from src.utils.sperimental_analysis import build_solutions_csv
         from src.utils.profiling import generate_profiling_markdown, save_profiling_report
 
         successes, timeouts = 0, 0
@@ -306,7 +301,7 @@ def handle_run_test(root, state):
                 def _timeout_watcher():
                     if not stop_event.wait(timeout=TIME_LIMIT):
                         # wait() returned False → timeout expired, solver still running
-                        print(f"\n⏱ Timeout watcher: setting stop_event for instance {idx}")
+                        print(f"\nTimeout watcher: setting stop_event for instance {idx}")
                         stop_event.set()
 
                 watcher = _threading.Thread(target=_timeout_watcher, daemon=True)
@@ -348,10 +343,10 @@ def handle_run_test(root, state):
                                 instance_idx=idx + 1,
                                 map_name=map_name
                             )
-                            print(f"✓ Profiling report saved: {report_path}")
+                            print(f"Profiling report saved: {report_path}")
                         except Exception as e:
                             import traceback
-                            print(f"⚠️ Failed to save profiling report for instance {idx}: {e}")
+                            print(f"Warning: failed to save profiling report for instance {idx}: {e}")
                             print(f"[DEBUG] Exception type: {type(e).__name__}")
                             print(f"[DEBUG] Traceback:\n{traceback.format_exc()}")
                     else:
@@ -372,7 +367,7 @@ def handle_run_test(root, state):
                     if stop_event.is_set():
                         elapsed_time = time.perf_counter() - start_time
                         stat["elapsed_time"] = elapsed_time
-                        print(f"⚠️ Timeout reached for instance {idx}")
+                        print(f"Warning: timeout reached for instance {idx}")
                         #messagebox.showinfo("TIMEOUT", f"!! Timeout reached for instance {idx}")
                         timeouts += 1
                         timed_out = True
@@ -395,7 +390,7 @@ def handle_run_test(root, state):
                 timing_stats.append(stat)
 
             except Exception as e:
-                print(f"❌ Error on instance {idx}: {e}")
+                print(f"Error on instance {idx}: {e}")
                 elapsed_time = time.perf_counter() - start_time
                 stat["elapsed_time"] = elapsed_time
                 solutions.append(Solution(None, set(), set(), dict(), dict()))
@@ -453,7 +448,6 @@ def handle_kill_terminal(console_textbox=None):
             pass
 
     # Schedule the restart after a short delay so the UI has time to flush
-    import tkinter as _tk
     try:
         # Find the root window from the textbox widget
         root = console_textbox.winfo_toplevel() if console_textbox is not None else None

@@ -4,7 +4,6 @@ Fornisce report dettagliati sulla distribuzione del tempo e sul numero di operaz
 """
 
 from src.utils.granular_profiler import get_profiler
-import json
 
 
 class BottleneckAnalyzer:
@@ -238,33 +237,3 @@ class BottleneckAnalyzer:
         
         print("\n" + "="*80 + "\n")
     
-    def get_report_dict(self):
-        """Return analysis as dictionary"""
-        return self.analyze()
-    
-    def export_to_json(self, filename):
-        """Export analysis to JSON format"""
-        analysis = self.analyze()
-        
-        # Convert numpy types if necessary
-        def convert_to_serializable(obj):
-            if isinstance(obj, dict):
-                return {k: convert_to_serializable(v) for k, v in obj.items()}
-            elif isinstance(obj, (list, tuple)):
-                return [convert_to_serializable(v) for v in obj]
-            elif isinstance(obj, (int, float, str, bool, type(None))):
-                return obj
-            else:
-                return str(obj)
-        
-        with open(filename, 'w') as f:
-            json.dump(convert_to_serializable(analysis), f, indent=2)
-        
-        print(f"\nAnalysis exported to {filename}")
-
-
-def analyze_bottlenecks():
-    """Convenience function to analyze bottlenecks"""
-    analyzer = BottleneckAnalyzer()
-    analyzer.print_analysis()
-    return analyzer.get_report_dict()

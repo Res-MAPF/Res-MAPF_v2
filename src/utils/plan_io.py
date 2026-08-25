@@ -3,7 +3,6 @@ import inspect
 from tkinter import messagebox, filedialog
 
 import pickle
-import inspect
 import datetime
 import os
 
@@ -40,6 +39,7 @@ def save_full_solution_pickle(
         "robustness_params": robustness_params,
         "grid_name": grid_name,
     }
+    os.makedirs(SOLUTIONS_DIR, exist_ok=True)
     with open(f"{SOLUTIONS_DIR}/{filename}", "wb") as f:
         pickle.dump(data, f)
 
@@ -77,6 +77,7 @@ def save_instance_to_file(
         "h": robustness_params.h,
         "selected_failtypes": robustness_params.selected_failure_types,
     }
+    os.makedirs(SAVE_INSTANCE_INITIAL_DIR, exist_ok=True)
     file_path = filedialog.asksaveasfilename(
         title=TITLE_SAVE_INSTANCE,
         initialdir=SAVE_INSTANCE_INITIAL_DIR,

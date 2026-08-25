@@ -599,10 +599,6 @@ def update_failed_actions(current_failed, affected_actions):
     return tuple(new_failed)
 
 
-def compute_all_macroactions(possible_individual_actions):
-    return list(itertools.product(*possible_individual_actions))
-
-
 def compute_macroaction_cost(macroaction, G):
     cost = 0
     for action in macroaction:

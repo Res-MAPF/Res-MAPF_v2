@@ -1,11 +1,10 @@
+import os
 import pickle
 import networkx as nx
 from pathlib import Path
 import random
 
-from src.utils.map_handler import build_graph
-from src.domain.MAPFInstance import MAPFInstance
-from src.utils.map_handler import load_map
+from src.utils.map_handler import build_graph, load_map
 
 
 TEST_INSTANCES_DIR = str(Path("data/test_instances"))
@@ -33,6 +32,7 @@ def generate_test_instances(n_instances, n_agents, min_dst, name, map_name):
         instances.append(instance)
 
     # Save instances with pickle
+    os.makedirs(TEST_INSTANCES_DIR, exist_ok=True)
     with open(f"{TEST_INSTANCES_DIR}/{name}.pkl", "wb") as f:
         pickle.dump(instances, f)
 

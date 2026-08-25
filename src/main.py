@@ -2,7 +2,6 @@ from src.view.controller import MainGUIController
 import customtkinter as ctk
 from pathlib import Path
 import tkinter
-import os
 import sys
 
 # Salva l'original excepthook

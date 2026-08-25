@@ -1,8 +1,6 @@
 import time
 from collections import defaultdict
 from contextlib import contextmanager
-import functools
-from threading import local
 
 class GranularProfiler:
     """
@@ -21,18 +19,11 @@ class GranularProfiler:
         })
         self.call_stack = []
         self.enabled = True
-        self._local = local()
-        self.wall_clock_start = None
-        self.wall_clock_end = None
         self.counters = defaultdict(int)
 
     def increment_counter(self, name, amount=1):
         """Increment a named integer counter (e.g. number of CBS conflicts)"""
         self.counters[name] += amount
-
-    def get_counters(self):
-        """Return a plain dict copy of all named counters"""
-        return dict(self.counters)
 
     @contextmanager
     def measure(self, function_name):
@@ -63,16 +54,6 @@ class GranularProfiler:
             if parent_name:
                 parent_metric = self.metrics[parent_name]
                 parent_metric['child_time'] += elapsed
-    
-    def track_function(self, function_name):
-        """Decorator to automatically track a function"""
-        def decorator(func):
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                with self.measure(function_name):
-                    return func(*args, **kwargs)
-            return wrapper
-        return decorator
     
     def get_stats(self, func_name=None):
         """Get statistics for a specific function or all"""
@@ -208,17 +189,6 @@ _global_profiler = GranularProfiler()
 def get_profiler():
     """Return the global profiler instance"""
     return _global_profiler
-
-
-def track(function_name):
-    """Global decorator to track functions"""
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            with _global_profiler.measure(function_name):
-                return func(*args, **kwargs)
-        return wrapper
-    return decorator
 
 
 @contextmanager

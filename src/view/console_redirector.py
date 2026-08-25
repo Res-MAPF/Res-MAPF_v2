@@ -66,10 +66,6 @@ class ThreadSafeConsoleRedirector:
         except Exception as e:
             print(f"[Warning] Console flush failed: {e}", file=sys.__stderr__)
 
-    def close(self):
-        self._active = False
-        self.restore()
-
     def restore(self):
         try:
             sys.stdout = self.original_stdout

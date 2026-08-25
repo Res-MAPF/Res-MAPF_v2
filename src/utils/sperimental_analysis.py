@@ -74,8 +74,7 @@ def aggregate_granular_stats(granular_stats):
 
 
 def build_solutions_csv(instances, robustness_params, solutions, selected_set, timing_stats, timed_out_flags):
-    directory = ""
-    filename = os.path.join(directory, "results.csv")
+    filename = os.environ.get("RESULTS_CSV_PATH", "results.csv")
     file_exists = os.path.exists(filename)
 
     fieldnames = [
@@ -95,6 +94,13 @@ def build_solutions_csv(instances, robustness_params, solutions, selected_set, t
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
+    if os.path.exists(filename) and os.path.getsize(filename) > 0:
+        with open(filename, "rb") as f:
+            f.seek(-1, os.SEEK_END)
+            if f.read(1) != b"\n":
+                with open(filename, "a", newline="") as f_append:
+                    f_append.write("\n")
+
     for instance, solution, stats, timeout_flag in zip(instances, solutions, timing_stats, timed_out_flags):
         map_name, inst_starts, inst_goals = instance[0], instance[1], instance[2]
 
@@ -102,7 +108,7 @@ def build_solutions_csv(instances, robustness_params, solutions, selected_set, t
         try:
             total_cells, percentage_avail_cells = compute_map_info(map_name)
         except Exception as e:
-            print(f"⚠️ Failed to compute map info for {map_name}: {e}")
+            print(f"Warning: failed to compute map info for {map_name}: {e}")
             total_cells, percentage_avail_cells = 0, 0
 
         # Supporta sia il vecchio formato (cProfile) che il nuovo (granulare)
@@ -169,7 +175,6 @@ def build_solutions_csv(instances, robustness_params, solutions, selected_set, t
             writer.writerow(row)
 
 def compute_map_info(map_name):
-    import networkx as nx
     from src.utils.map_handler import load_map, build_graph
 
     grid = load_map(map_name)

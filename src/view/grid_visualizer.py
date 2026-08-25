@@ -1,5 +1,4 @@
 import customtkinter as ctk
-from tkinter import ttk
 import tkinter.ttk as tctk
 
 from src.domain.MAPFInstance import MAPFInstance, RobustnessParams, SearchParams
@@ -79,7 +78,6 @@ class GridVisualizer:
         self.is_panning = False
         self.selected_agent = 0
         self.conflicting_cells = []
-        self.dynamic_obstacles = []
         self.failed_actions = [set() for _ in self.mapf_instance.starts]
         self.R_up = solution.R_up
         self.R_down = solution.R_down
@@ -282,7 +280,6 @@ class GridVisualizer:
 
     def draw_grid(self):
         self.canvas.delete("all")
-        rows, cols = len(self.grid), len(self.grid[0])
         cell_roles = {}
 
         for idx, pos in enumerate(self.mapf_instance.starts):
@@ -549,7 +546,7 @@ class GridVisualizer:
         t = self.current_step
 
         if t >= len(self.paths[ag]):
-            debug_print("⚠ End of path: no action to fail.")
+            debug_print("Warning: end of path, no action to fail.")
             return
 
         # macroaction

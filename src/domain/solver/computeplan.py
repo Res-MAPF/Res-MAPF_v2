@@ -3,7 +3,6 @@ from bisect import bisect_left
 from collections import defaultdict
 
 from copy import deepcopy
-import heapq
 
 from math import sqrt
 
@@ -65,7 +64,6 @@ class SafeIntervalCache:
         self.cached_T = {}  # vertex -> intervals
         self.cached_hard_by_vertex = {}  # vertex -> set of hard times
         self.cached_soft_by_vertex = {}  # vertex -> set of soft times
-        self.graph_nodes = set()
     
     def get_or_update_table(self, graph, Oh_vertex, Oh_target, Os_vertex, Os_target, max_time):
         """Get T_table, recomputing only vertices with changed constraints.
@@ -118,8 +116,7 @@ class SafeIntervalCache:
         # Update cache with new constraint sets
         self.cached_hard_by_vertex = dict(new_hard_by_vertex)
         self.cached_soft_by_vertex = dict(new_soft_by_vertex)
-        self.graph_nodes = set(graph.nodes)
-        
+
         # Recompute only changed vertices
         for v in changed_vertices:
             hard_times = self.cached_hard_by_vertex.get(v, set())
@@ -321,9 +318,6 @@ class SIPPSNode:
                 return True
         return False
 
-    def identity(self):
-        return (self.v, self.interval_id, self.is_goal)
-
     def compute_c_value(self, parent, Os_vertex, Os_edge, Os_target, cfuture):
         c_conflicts = 0
 
@@ -432,7 +426,7 @@ def compute_plan_cbs(starts, goals, failed_actions, states_down, graph, h_maps,
                 _profiler.increment_counter('cbs_total_conflicts')
                 if conflict[-1] == "vertex":
                     with profile_section("CBS_vertex_conflict"):
-                        ai, aj, vertex, timestep, confl_type = conflict
+                        ai, aj, vertex, timestep, _ = conflict
 
                         constraints_ai = deepcopy(node.constraints)
                         constraints_ai.add((ai, vertex, timestep, "vertex"))
@@ -458,7 +452,7 @@ def compute_plan_cbs(starts, goals, failed_actions, states_down, graph, h_maps,
 
                 elif conflict[-1] == "edge":
                     with profile_section("CBS_edge_conflict"):
-                        ai, aj, (u, v), timestep, confl_type = conflict
+                        ai, aj, (u, v), timestep, _ = conflict
 
                         constraints_ai = deepcopy(node.constraints)
                         constraints_ai.add((ai, (u, v), timestep, "edge"))
@@ -619,10 +613,8 @@ def low_level_search_cbs(
         for idx_k in idx_d:
             idx_d[idx_k].sort()
 
-    sipps_iterations = 0
     with profile_section(f"SIPPS_loop_agent_{agent_id}"):
         while open_list:
-            sipps_iterations += 1
             if stop_event is not None and stop_event.is_set():
                 print(f"\n[SIPPS agent {agent_id}] Stop event received, aborting.")
                 return None, float("inf")
