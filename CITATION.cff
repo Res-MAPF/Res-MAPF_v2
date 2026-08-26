@@ -3,7 +3,8 @@ message: >-
   If you use this software in your research or project work, please cite it using the metadata in this file.
 title: "Res-MAPF - v2"
 abstract: >-
-  Insert abstract here (2 lines)
+  Performance-optimized resilient multi-agent path-finding solver: computes
+  joint plans on a grid map that stay valid under a bounded number of tolerated action failures.
 authors:
   - family-names: Turini
     given-names: Andrea Celeste
