@@ -89,7 +89,7 @@ class GranularProfiler:
         report.append("GRANULAR PROFILING REPORT")
         report.append("="*80)
         
-        # Ordina per tempo totale
+        # Sort by total time
         sorted_metrics = sorted(
             self.metrics.items(),
             key=lambda x: x[1]['total_time'],

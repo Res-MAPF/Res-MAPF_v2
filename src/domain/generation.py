@@ -11,6 +11,9 @@ TEST_INSTANCES_DIR = str(Path("data/test_instances"))
 MAX_DST_RANGE = 5
 
 def generate_test_instances(n_instances, n_agents, min_dst, name, map_name):
+    """Build n_instances random start/goal assignments for n_agents on map_name and pickle the
+    resulting (map_name, starts, goals) list to TEST_INSTANCES_DIR/<name>.pkl. Each start/goal pair
+    is separated by a shortest-path distance in [min_dst, min_dst + MAX_DST_RANGE]."""
     grid = load_map(map_name)
     graph = build_graph(grid, n_agents)
 
@@ -31,12 +34,15 @@ def generate_test_instances(n_instances, n_agents, min_dst, name, map_name):
         instance = (map_name, starts, goals)
         instances.append(instance)
 
-    # Save instances with pickle
     os.makedirs(TEST_INSTANCES_DIR, exist_ok=True)
     with open(f"{TEST_INSTANCES_DIR}/{name}.pkl", "wb") as f:
         pickle.dump(instances, f)
 
 def extract_start_goal_with_min_distance(graph, min_dst, starts, goals):
+    """Sample a (start, goal) pair at shortest-path distance in [min_dst, min_dst + MAX_DST_RANGE],
+    avoiding cells already used as starts/goals. Tries random sampling first; if that doesn't hit
+    the distance window within max_attempts, falls back to a single-source search from a random
+    start to find any goal at or beyond min_dst. Returns (None, None) if no pair can be found."""
     max_dst = min_dst + MAX_DST_RANGE
     max_attempts = 100
     nodes = list(graph.nodes)
@@ -50,7 +56,7 @@ def extract_start_goal_with_min_distance(graph, min_dst, starts, goals):
                     continue
                 return start, goal
         except nx.NetworkXNoPath:
-            continue # No path exists
+            continue
 
     for _ in range(len(nodes)):
         start = random.choice(nodes)

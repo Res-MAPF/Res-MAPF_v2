@@ -1,6 +1,6 @@
 """
-Bottleneck Analyzer: Analizza i dati di profiling per identificare bottleneck in ResPlaN.
-Fornisce report dettagliati sulla distribuzione del tempo e sul numero di operazioni.
+Bottleneck Analyzer: analyzes profiling data to identify bottlenecks in ResPlaN.
+Provides detailed reports on time distribution and operation counts.
 """
 
 from src.utils.granular_profiler import get_profiler
@@ -8,15 +8,15 @@ from src.utils.granular_profiler import get_profiler
 
 class BottleneckAnalyzer:
     """
-    Analizza i risultati del profiling granulare per identificare bottleneck
-    e fornire raccomandazioni di ottimizzazione.
+    Analyzes granular profiling results to identify bottlenecks and provide
+    optimization recommendations.
     """
     
     def __init__(self):
         self.profiler = get_profiler()
     
     def analyze(self):
-        """Esegue l'analisi completa dei bottleneck"""
+        """Run the complete bottleneck analysis."""
         stats = self.profiler.get_stats()
         
         if not stats:
@@ -27,13 +27,8 @@ class BottleneckAnalyzer:
                 'recommendations': []
             }
         
-        # Categorizza i risultati per componente
         components_breakdown = self._categorize_by_component(stats)
-        
-        # Calcola i bottleneck
         bottlenecks = self._identify_bottlenecks(stats, components_breakdown)
-        
-        # Genera raccomandazioni
         recommendations = self._generate_recommendations(bottlenecks, components_breakdown)
         
         return {
@@ -84,7 +79,7 @@ class BottleneckAnalyzer:
                 categories['SIPPS']['calls'] += calls
                 categories['SIPPS']['functions'].append((func_name, time, calls))
             else:
-                # Qualsiasi altra funzione va in ResPlaN
+                # Any other function falls back into the ResPlaN bucket
                 categories['ResPlaN']['time'] += time
                 categories['ResPlaN']['calls'] += calls
                 categories['ResPlaN']['functions'].append((func_name, time, calls))

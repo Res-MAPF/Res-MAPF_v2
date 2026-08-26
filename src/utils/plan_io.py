@@ -27,7 +27,8 @@ def save_full_solution_pickle(
     grid_name,
     filename="fullsolution",
 ):
-    # remove extension from filename
+    """Pickle solution together with mapf_instance, robustness_params, and grid_name to
+    SOLUTIONS_DIR, under a name built by create_solution_name()."""
     edited_grid_name = os.path.basename(grid_name).split(".")[0]
 
     filename = create_solution_name(
@@ -45,11 +46,15 @@ def save_full_solution_pickle(
 
 
 def create_solution_name(filename, grid_name, robustness_params, num_ag):
+    """Build a solution filename encoding the label, map, k/m/h, failure types, agent count,
+    and a timestamp, so saved solutions are self-describing and sort chronologically."""
     current_date_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     return f"{filename}_{grid_name}_{robustness_params.k}k_{robustness_params.m}m_{robustness_params.h}h_{robustness_params.selected_failure_types}_{num_ag}ag_{current_date_time}.pkl"
 
 
 def load_full_solution_pickle(filename="full_solution.pkl"):
+    """Load a pickle saved by save_full_solution_pickle(), returning
+    (solution, mapf_instance, robustness_params, grid_name)."""
     debug_print(f"Loading full solution from {filename} with pickle")
     with open(filename, "rb") as f:
         data = pickle.load(f)
@@ -68,6 +73,8 @@ def save_instance_to_file(
     robustness_params,
     parent_window=None,
 ):
+    """Prompt the user with a save dialog and write the instance definition (map, starts, goals,
+    robustness params) as JSON. Returns True on success, False if cancelled or on error."""
     instance = {
         "grid": map_name,
         "start_positions": start_positions,
@@ -95,6 +102,8 @@ def save_instance_to_file(
     return False
 
 def load_instance_from_file(filename):
+    """Load an instance definition JSON saved by save_instance_to_file(), returning
+    (grid, starts, goals, robustness_params), or (None, None, None, None) on failure."""
     try:
         debug_print(f"Loading instance from {filename}")
         with open(filename, "r") as f:

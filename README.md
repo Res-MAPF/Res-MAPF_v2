@@ -7,7 +7,6 @@ A performance-optimized rewrite of the original Baseline resilient-MAPF solver �
 **Introduced updates** *(vs. Baseline)*:
 - [x] Incremental safe-interval caching — only recomputes the table entries touched by a changed constraint, instead of rebuilding it from scratch every CBS node
 - [x] Binary-search constraint lookup in the low-level planner
-- [x] Selective per-agent replanning — only the agent whose constraints changed is re-solved; every other agent's path is reused
 - [x] Failure-branch path-suffix reuse in the resilience search, instead of replanning every agent on every branch
 - [x] Precomputed per-agent heuristics and a cheap reachability pre-check to prune infeasible failure branches early
 - [x] Parallel multi-instance batch driver (`run_parallel.py`)

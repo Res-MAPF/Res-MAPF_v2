@@ -156,6 +156,8 @@ class SafeIntervalCache:
         return intervals
 
 class CBSNode:
+    """One Conflict-Based Search node: a set of constraints and the per-agent paths computed
+    under them (via compute_low_level_solution), ordered in the CBS open list by total cost."""
     def __init__(self, constraints=None, solution=None, cost=float("inf")):
         self.constraints = constraints if constraints is not None else set()
         self.solution = solution
@@ -342,6 +344,12 @@ class SIPPSNode:
 
 def compute_plan_cbs(starts, goals, failed_actions, states_down, graph, h_maps,
                      initial_paths=None, stop_event=None):
+    """Run Conflict-Based Search to find a nominal (non-resilient) joint plan. Conflicts between
+    agents' paths (vertex, edge, and diagonal crossing) are found by detect_conflict() and resolved
+    by branching a new constrained CBSNode per conflicting agent; a resulting joint-state sequence
+    that passes through an already-known non-resilient state (states_down) is also branched on,
+    not just genuine conflicts. Returns (pi, tau, per_agent_paths) - the macro-action sequence, the
+    joint-state sequence, and the raw per-agent paths - or (None, None, None) if no plan exists."""
     open_list = []
     closed_tau_set = set()  # Avoids repeated exploration of tau states
     visited_constraints = set()
@@ -523,10 +531,14 @@ def low_level_search_cbs(
     goals=None,
     stop_event=None,
 ):
+    """Low-level SIPPS (Safe-Interval Path Planning with Soft constraints) search for one agent:
+    finds the path minimizing (conflicts, f-value, real geometric cost) subject to the given hard
+    CBS constraints, using the other agents' paths as soft constraints to avoid where possible.
+    Returns (path, cost), or (None, inf) if no path exists."""
     Oh_vertex, Oh_edge, Oh_target = set(), set(), set()
     Os_vertex, Os_edge, Os_target = set(), set(), set()
 
-    # Hard constraints are populated
+    # Populate hard constraints
     with profile_section(f"populate_hard_constraints_agent_{agent_id}"):
         for c in constraints:
             if c[0] != agent_id:
@@ -538,7 +550,7 @@ def low_level_search_cbs(
                 t = c[2]
                 Oh_edge.add(((u, v), t + 1))
 
-    # Soft constraints are populated
+    # Populate soft constraints
     with profile_section(f"populate_soft_constraints_agent_{agent_id}"):
         for path in paths or []:
             for t in range(len(path) - 1):
@@ -546,7 +558,8 @@ def low_level_search_cbs(
             for t, v in enumerate(path):
                 Os_vertex.add((v, t))
 
-    # Remove edges due to failed actions, track them for restoration
+    # Failed actions are translated into edges to exclude from the search; the graph itself is
+    # never mutated, the edges are only tracked here so get_valid_successors can filter them out
     with profile_section(f"graph_modification_agent_{agent_id}"):
         removed_edges = set()
         inv = {v: k for k, v in HIGH_LEVEL_MOVES.items()}
@@ -619,11 +632,11 @@ def low_level_search_cbs(
                 print(f"\n[SIPPS agent {agent_id}] Stop event received, aborting.")
                 return None, float("inf")
 
-            # HEAP POP
+            # Pop the next node from the open list
             with profile_section(f"SIPPS_heap_pop_agent_{agent_id}"):
                 n = heapq.heappop(open_list)
 
-            # GOAL CHECK
+            # Check whether this node reaches the goal
             with profile_section(f"SIPPS_goal_check_agent_{agent_id}"):
                 if n.is_goal:
                     return extract_path(n), n.g
@@ -652,7 +665,7 @@ def low_level_search_cbs(
                         )
                         insert_node(goal_node, open_list, closed_list)
 
-            # SUCCESSOR GENERATION - get valid successors
+            # Generate valid successors
             with profile_section(f"SIPPS_successor_generation_agent_{agent_id}"):
                 I = set()
                 # Filter successors through removed_edges set
@@ -667,7 +680,7 @@ def low_level_search_cbs(
                     if lo == n.high:
                         I.add((n.v, idx))
 
-            # PROCESS SUCCESSORS
+            # Process each successor
             for v, idx in I:
                 with profile_section(f"SIPPS_successor_processing_agent_{agent_id}"):
                     lo, hi = T_table[v][idx]
@@ -685,7 +698,7 @@ def low_level_search_cbs(
                     if t_soft is None:
                         continue
 
-                    # CREATE AND INSERT NODES
+                    # Create and insert new nodes
                     with profile_section(f"SIPPS_node_creation_agent_{agent_id}"):
                         if t_soft > t_hard:
                             n1 = SIPPSNode(
@@ -723,7 +736,7 @@ def low_level_search_cbs(
                                 v,
                                 (lo, hi),  # [lo, hi)
                                 idx,
-                                t_hard,  # arrival time reale
+                                t_hard,  # actual arrival time
                                 heuristic_map,
                                 Os_vertex,
                                 Os_edge,
@@ -734,7 +747,7 @@ def low_level_search_cbs(
                             )
                             insert_node(n3, open_list, closed_list)
             
-            # Add to closed list AFTER processing all successors
+            # Add to closed list after processing all successors
             with profile_section(f"SIPPS_node_close_agent_{agent_id}"):
                 closed_list.append(n)
     
@@ -742,7 +755,8 @@ def low_level_search_cbs(
 
 
 def build_solution(node):
-    # Build joint states and macroactions
+    """Turn a CBS node's per-agent paths into (macroactions, joint_states), padding shorter
+    paths with their final position so every agent's path has the same length."""
     if node.solution is None:
         return [], []
 
@@ -782,6 +796,10 @@ def heuristic(graph, goal):
 
 
 def insert_node(n, open_list, closed_dict):
+    """Insert SIPPS node n into open_list, applying dominance-based pruning against any existing
+    node for the same (vertex, interval, is_goal): if an existing node dominates n, n is dropped;
+    if n dominates an existing node, that node is removed; if the two intervals merely overlap
+    without either dominating, they are split at the boundary so they no longer overlap."""
     n_list = set()
 
     for node in set(open_list).union(closed_dict):
@@ -817,6 +835,9 @@ def insert_node(n, open_list, closed_dict):
 
 
 def extract_path(n):
+    """Reconstruct the per-timestep path by walking the SIPPSNode parent chain back to the root,
+    inserting "wait in place" steps wherever a node's arrival time g is later than the previous
+    node's time plus one (i.e. the agent held position while waiting out an unsafe interval)."""
     path_nodes = []
     node = n
     while node is not None:
@@ -859,6 +880,10 @@ def extract_pi_from_tau(joint_states):
 
 
 def detect_conflict(paths):
+    """Find the first conflict between any two agents' paths: a vertex conflict (same cell, same
+    timestep), an edge conflict (direct position swap), or a diagonal crossing (two agents
+    traverse the same 2x2 square from opposite corners without ever sharing a cell or edge).
+    Returns None if the paths are conflict-free, otherwise a tuple ending in "vertex" or "edge"."""
     max_len = max(len(p) for p in paths)
 
     # Vertex conflicts

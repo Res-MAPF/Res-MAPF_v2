@@ -7,6 +7,10 @@ from src.utils.map_handler import MAPS_DIR
 from src.view.handlers import handle_run_test
 
 def build_layout(root, state):
+    """Construct the entire main window and store a reference to every interactive widget on
+    state (e.g. state.map_var, state.solve_button, state.agent_listbox). Does not attach button
+    commands itself, except for run_test_button and kill_button, wired directly here to
+    handlers.handle_run_test/handle_kill_terminal. Returns the console CTkTextbox."""
 
     ######## MAIN CONTAINER ########
     main_container = ctk.CTkFrame(root)
@@ -102,10 +106,7 @@ def build_layout(root, state):
     state.simulate_plan_btn = ctk.CTkButton(simula_frame, text="Simulate")
     state.simulate_plan_btn.pack(pady=(10, 0))
 
-    ## Generate test instances ##
-
-    # Frame interno
-    # Colonna centrale scrollabile
+    ## Central scrollable column (holds the "Generate test instances" panel and console output) ##
     central_column = ctk.CTkScrollableFrame(
         main_container,
         fg_color="transparent"
@@ -115,7 +116,7 @@ def build_layout(root, state):
         sticky="nsew", padx=(5, 0), pady=5
     )
 
-    # === Generate test instances ===
+    ## Generate test instances ##
     generate_frame_container = ctk.CTkFrame(
         central_column,
         border_width=1,
@@ -132,53 +133,36 @@ def build_layout(root, state):
     gen_grid = ctk.CTkFrame(generate_frame)
     gen_grid.pack(fill="x")
 
-    #generate_frame_container = ctk.CTkFrame(main_container, border_width=1, border_color="#A0A0A0", corner_radius=10)
-    #generate_frame_container.grid(row=1, column=1, rowspan=3, columnspan=3, sticky="new", padx=(5, 0), pady=5)
-
-    #ctk.CTkLabel(generate_frame_container, text="Generate test instances", font=("Arial", 13, "bold")).pack(anchor="w", padx=10, pady=(10, 0))
-    #generate_frame = ctk.CTkFrame(generate_frame_container, fg_color="transparent")
-    #generate_frame.pack(fill="both", expand=True, padx=10, pady=10)
-    #gen_grid = ctk.CTkFrame(generate_frame)
-    #gen_grid.pack(expand=True)
-
     ctk.CTkLabel(gen_grid, text="Map").grid(row=0, column=0, sticky="w", padx=(0, 10))
     map_list = sorted(os.listdir(MAPS_DIR)) if os.path.exists(MAPS_DIR) else []
     combo_container = ctk.CTkFrame(gen_grid, fg_color="transparent")
     combo_container.grid(row=0, column=1, padx=(0, 20), sticky="w")
     tctk.Combobox(combo_container, textvariable=state.map_gen_var, values=map_list, width=20).pack(fill="x")
-    #tctk.Combobox(gen_grid, textvariable=state.map_gen_var, values=map_list, width=20).grid(row=0, column=1, padx=(0, 20))
 
     ctk.CTkLabel(gen_grid, text="# Instances").grid(row=1, column=0, sticky="w", padx=(0, 10))
     entry_container_1 = ctk.CTkFrame(gen_grid, fg_color="transparent")
     entry_container_1.grid(row=1, column=1, padx=(0, 20), sticky="w")
     tctk.Entry(entry_container_1, textvariable=state.num_instances_var, width=10).pack(fill="x")
-    #tctk.Entry(gen_grid, textvariable=state.num_instances_var, width=10).grid(row=1, column=1, padx=(0, 20))
 
     ctk.CTkLabel(gen_grid, text="# Agents").grid(row=2, column=0, sticky="w", padx=(0, 10))
     entry_container_2 = ctk.CTkFrame(gen_grid, fg_color="transparent")
     entry_container_2.grid(row=2, column=1, padx=(0, 20), sticky="w")
     tctk.Entry(entry_container_2, textvariable=state.num_agents_var, width=10).pack(fill="x")
-    #tctk.Entry(gen_grid, textvariable=state.num_agents_var, width=10).grid(row=2, column=1, padx=(0, 20))
 
     ctk.CTkLabel(gen_grid, text="Min distance").grid(row=3, column=0, sticky="w", padx=(0, 10))
     entry_container_3 = ctk.CTkFrame(gen_grid, fg_color="transparent")
     entry_container_3.grid(row=3, column=1, padx=(0, 20), sticky="w")
     tctk.Entry(entry_container_3, textvariable=state.min_dist_var, width=10).pack(fill="x")
-    #tctk.Entry(gen_grid, textvariable=state.min_dist_var, width=10).grid(row=3, column=1, padx=(0, 20))
 
     ctk.CTkLabel(gen_grid, text="Set name").grid(row=4, column=0, sticky="w", padx=(0, 10))
     entry_container_4 = ctk.CTkFrame(gen_grid, fg_color="transparent")
     entry_container_4.grid(row=4, column=1, padx=(0, 20), sticky="w")
     tctk.Entry(entry_container_4, textvariable=state.name_set_var, width=20).pack(fill="x")
-    #tctk.Entry(gen_grid, textvariable=state.name_set_var, width=20).grid(row=4, column=1, padx=(0, 20))
 
     state.generate_instances_btn = ctk.CTkButton(gen_grid, text="Generate instances")
     state.generate_instances_btn.grid(row=5, column=0, columnspan=2, pady=20)
 
     ## Console output ##
-    #console_frame_container = ctk.CTkFrame(main_container, border_width=1, border_color="#A0A0A0", corner_radius=10)
-    #console_frame_container.grid(row=2, column=1, columnspan=3, sticky="nsew", padx=(5, 0), pady=(0, 10))
-
     console_frame_container = ctk.CTkFrame(
         central_column,
         border_width=1,
@@ -186,16 +170,6 @@ def build_layout(root, state):
         corner_radius=10
     )
     console_frame_container.pack(fill="both", expand=True)
-
-
-    #ctk.CTkLabel(console_frame_container, text="Console output", font=("Arial", 13, "bold")).pack(anchor="w", padx=10, pady=(10, 0))
-    #console_textbox = ctk.CTkTextbox(console_frame_container, height=150, font=("Courier", 10), wrap="word", fg_color="#f0f0f0", border_width=0, corner_radius=8)
-    #console_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 10))
-
-    #state.copy_button = ctk.CTkButton(console_frame_container, text="Copy All")
-    #state.copy_button.place(relx=0.65, rely=0.95, anchor="e")
-    #state.clear_button = ctk.CTkButton(console_frame_container, text="Clear Console")
-    #state.clear_button.place(relx=0.98, rely=0.95, anchor="e")
 
     ctk.CTkLabel(
         console_frame_container,
@@ -214,7 +188,7 @@ def build_layout(root, state):
     )
     console_textbox.pack(fill="both", expand=True, padx=10, pady=(0, 5))
 
-    # Frame per i bottoni (sotto la textbox)
+    # Frame for the buttons below the textbox
     console_buttons_frame = ctk.CTkFrame(
         console_frame_container,
         fg_color="transparent"

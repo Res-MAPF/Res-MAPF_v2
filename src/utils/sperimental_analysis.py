@@ -34,7 +34,6 @@ def aggregate_granular_stats(granular_stats):
         ncalls = stats.get('ncalls', 0)
         cumtime = stats.get('cumtime', 0)
         
-        # Categorize functions with improved logic for specific functions
         component = None
         
         if 'resplan_iteration' in func_name or 'resplan' in func_name.lower():
@@ -50,11 +49,10 @@ def aggregate_granular_stats(granular_stats):
         elif 'SIPPS' in func_name or 'low_level' in func_name or 'build_safe' in func_name:
             component = 'low_level_search_cbs'
         else:
-            # Default: try to infer from function name patterns
+            # No matching component for this function name: skip it
             continue
-        
+
         if component:
-            # Aggregate
             components[component]['ncalls'] += ncalls
             components[component]['cumtime'] += cumtime
             
@@ -74,6 +72,11 @@ def aggregate_granular_stats(granular_stats):
 
 
 def build_solutions_csv(instances, robustness_params, solutions, selected_set, timing_stats, timed_out_flags):
+    """Append one results row per solved instance to a CSV (path from RESULTS_CSV_PATH, defaulting
+    to results.csv - overriding the env var lets run_parallel.py have each worker write its own
+    file). Each row records success/timeout status, R_up/R_down sizes, k/m/h, the resilient plan's
+    cost vs. the 0-resilient CBS baseline cost and the delta % between them, and a per-component
+    (ResPlaN/CBS/SIPPS) timing breakdown."""
     filename = os.environ.get("RESULTS_CSV_PATH", "results.csv")
     file_exists = os.path.exists(filename)
 
@@ -104,28 +107,26 @@ def build_solutions_csv(instances, robustness_params, solutions, selected_set, t
     for instance, solution, stats, timeout_flag in zip(instances, solutions, timing_stats, timed_out_flags):
         map_name, inst_starts, inst_goals = instance[0], instance[1], instance[2]
 
-        # Safe computation of map info with error handling
         try:
             total_cells, percentage_avail_cells = compute_map_info(map_name)
         except Exception as e:
             print(f"Warning: failed to compute map info for {map_name}: {e}")
             total_cells, percentage_avail_cells = 0, 0
 
-        # Supporta sia il vecchio formato (cProfile) che il nuovo (granulare)
+        # Supports both the old (cProfile) and new (granular) stats format
         if isinstance(stats, dict) and all(isinstance(v, dict) for v in stats.values()):
-            # Nuovo formato: statistiche granulari
+            # New format: granular statistics
             aggregated = aggregate_granular_stats(stats)
         else:
-            # Vecchio formato: statistiche cProfile
+            # Old format: cProfile statistics
             aggregated = stats
 
-        # Estrai counters CBS (presenti nel dict stats al top-level)
+        # Extract CBS counters (present at the top level of the stats dict)
         _counters = stats.get('_counters', {}) if isinstance(stats, dict) else {}
 
         def safe_stat(fn, key):
             return aggregated.get(fn, {}).get(key, 0) if isinstance(aggregated.get(fn), dict) else 0
 
-        # Calcola percentuali
         cbs_time = safe_stat("compute_plan_cbs", "cumtime")
         sipps_time = safe_stat("low_level_search_cbs", "cumtime")
         resplan_time = safe_stat("resplan_mapf", "cumtime")
@@ -175,6 +176,7 @@ def build_solutions_csv(instances, robustness_params, solutions, selected_set, t
             writer.writerow(row)
 
 def compute_map_info(map_name):
+    """Return (total_cells, percentage_of_walkable_cells) for the given map."""
     from src.utils.map_handler import load_map, build_graph
 
     grid = load_map(map_name)

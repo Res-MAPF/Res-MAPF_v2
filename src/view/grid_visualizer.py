@@ -12,6 +12,9 @@ def debug_print(message):
         print(message)
 
 def apply_action(state, action_vector, fail_indices, grid):
+    """Apply one macro-action's move vector to the joint state, keeping any agent in
+    fail_indices at its current position instead of moving it. Moves that would leave the
+    grid or land on a wall ('@') are treated as a no-op for that agent."""
     new_state = []
     moves = {
         "up": (-1, 0),
@@ -47,6 +50,11 @@ def apply_action(state, action_vector, fail_indices, grid):
     return tuple(new_state)
 
 class GridVisualizer:
+    """Plan-playback and failure-simulation window opened after a successful solve or when
+    loading a saved plan. Draws the map on a zoomable/pannable canvas and steps through the
+    resilient plan; the right-hand panel lets the user pick an agent and failure type and
+    "Simulate failure" to re-invoke the solver from the current step onward, splicing the new
+    resilient continuation onto the plan prefix already executed."""
     def __init__(
         self,
         root,
@@ -265,6 +273,8 @@ class GridVisualizer:
         self.cell_size = min(canvas_width // cols, canvas_height // rows)
 
     def extract_nominal_paths(self):
+        """Replay robust_strategy's macro-action sequence from the starts to build a
+        per-agent list of positions over time, for drawing paths and the step display."""
         num_agents = len(self.mapf_instance.starts)
         paths = [[self.mapf_instance.starts[i]] for i in range(num_agents)]
         current_state = tuple(self.mapf_instance.starts)
@@ -418,7 +428,7 @@ class GridVisualizer:
         )
 
         self.update_paths_display()
-        # Mark conflicting cells
+        # Mark failed cells
         for row, col in self.failed_cells:
             center_x = col * self.cell_size + self.offset_x + self.cell_size / 2
             center_y = row * self.cell_size + self.offset_y + self.cell_size / 2
@@ -455,7 +465,7 @@ class GridVisualizer:
         for agent_idx, path in enumerate(self.paths):
             self.paths_text.insert(ctk.END, f"Agent {agent_idx + 1} Path:\n")
             for step, pos in enumerate(path):
-                # Evidenzia il passo corrente
+                # Highlight the current step
                 if step == self.current_step:
                     self.paths_text.insert(
                         ctk.END, f"Step {step}: ({pos[0]}, {pos[1]}) <- Current\n"
@@ -542,6 +552,11 @@ class GridVisualizer:
         self.draw_grid()
 
     def apply_selected_agent_failure(self):
+        """Fail the selected agent's action at the current step under the selected failure type:
+        compute which actions become newly forbidden, decrement the remaining k budget and that
+        agent's h count (bailing out if either is exceeded), then re-invoke the solver seeded
+        with the previous solve's R_up/R_down/predecessors so the search resumes rather than
+        restarts, and splice the new resilient continuation onto the plan prefix already executed."""
         ag = self.selected_agent
         t = self.current_step
 
@@ -588,7 +603,7 @@ class GridVisualizer:
             debug_print("\n\t Allowed failures exceeded!")
             return
 
-        # recall solver
+        # re-invoke the solver with the failure applied
         failed_tuple = tuple(frozenset(s) for s in self.failed_actions)
         self.failed_agents[ag] = self.failed_agents[ag] + 1
 

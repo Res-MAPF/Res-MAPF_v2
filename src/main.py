@@ -4,7 +4,7 @@ from pathlib import Path
 import tkinter
 import sys
 
-# Salva l'original excepthook
+# Save the original excepthook
 _original_excepthook = sys.excepthook
 
 def suppress_customtkinter_errors(exc_type, exc_value, exc_traceback):
@@ -16,7 +16,7 @@ def suppress_customtkinter_errors(exc_type, exc_value, exc_traceback):
     # Handle all other errors normally
     _original_excepthook(exc_type, exc_value, exc_traceback)
 
-# Monkey-patch Tkinter's exception handling per i callback
+# Monkey-patch Tkinter's exception handling for callbacks
 def setup_tkinter_exception_handler():
     """Patch Tkinter's report_callback_exception to suppress known non-critical errors"""
     original_report = tkinter.Tk.report_callback_exception

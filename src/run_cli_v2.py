@@ -162,6 +162,9 @@ def _load_pkl_instances(path):
 
 
 def main():
+    """CLI entry point with three subcommands: "single" (one instance from flags), "pkl" (every
+    instance in a data/test_instances pickle, shared params), and "config" (a JSON file listing
+    instances each with their own params). Dispatches to run_one_instance()/run_batch()."""
     parser = argparse.ArgumentParser(description="Headless CLI runner for ResplanMAPF v2 (no GUI).")
     sub = parser.add_subparsers(dest="mode", required=True)
 

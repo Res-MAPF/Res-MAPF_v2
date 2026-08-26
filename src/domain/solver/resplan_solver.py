@@ -18,6 +18,9 @@ HIGH_LEVEL_MOVES = {
 MOVE_NAME_TO_DELTA = {v: k for k, v in HIGH_LEVEL_MOVES.items()}
 
 class Node:
+    """One ResPlaN search state: joint agent positions (state), remaining failure budget (k),
+    the set of actions already known to be forbidden per agent (failed_actions), and each
+    agent's failure count so far (failure_agents)."""
     def __init__(self, state, k, failed_actions, failure_agents):
         self.state = state
         self.k = k
@@ -35,6 +38,8 @@ class Node:
 
 
     def get_failable_agents(self, m, h):
+        """Return indices of agents that may still be made to fail from this node without
+        violating the m (max distinct agents affected) / h (max failures per agent) budget."""
         failable_agents = []
         num_agents = len(self.failure_agents)
 
@@ -55,11 +60,18 @@ def resplan_mapf(
     search_params,
     stop_event=None,
 ):
+    """Main ResPlaN search loop: finds a joint plan resilient to up to k failures under the m/h
+    budget. Pops nodes from an open list, checks for goal/colliding states, calls rcheck() to see
+    whether a node is already provably resilient via previously-verified successor states, and
+    otherwise calls compute_plan_cbs() to get a nominal plan for that state. Each macro-action step
+    of that plan is branched into a "what if this action fails" child node per failable agent and
+    per selected failure type. Resilient/non-resilient states accumulate in R_up/R_down;
+    predecessors and resilient_node_macroactions record enough information for
+    extract_solution_from_predecessors() to reconstruct the final plan once the search terminates."""
     map_graph = mapf_instance.graph
     starts = tuple(mapf_instance.starts)
     goals = tuple(mapf_instance.goals)
 
-    # Print start-goal pairs for each agent
     for i, (start, goal) in enumerate(zip(starts, goals)):
         print(f"\tAgent {i}: start={start}, goal={goal}")
 
@@ -402,6 +414,10 @@ def extract_solution_from_predecessors(
     resilient_node_macroactions,
     mapf_instance,
 ):
+    """Walk forward from the initial node signature to a goal, following either a cached
+    rcheck macroaction (resilient_node_macroactions) or, failing that, a recorded predecessor edge
+    that leads to another R_up state, returning the resulting list of macroactions. Returns None
+    if no such resilient path can be traced."""
     plan = []
 
     while not is_goal(initial_node_sig[0], goals):
@@ -451,6 +467,10 @@ def is_goal(state, goals):
     return tuple(state) == tuple(goals)
 
 def rcheck(current_node, R_up_sigs, mapf_instance, N, selected_failure_types, m, h):
+    """Check whether current_node is already provably resilient without invoking CBS: look for an
+    applicable macroaction whose success state is already in R_up, and whose every failure branch
+    (for every failable agent and selected failure type) also lands in R_up. Returns
+    (True, macroaction) on success, (False, None) otherwise."""
     for macroaction in compute_applicable_macroactions(
         current_node.state, current_node.failed_actions, mapf_instance.graph
     ):
@@ -657,6 +677,12 @@ def agents_can_reach_goals(state, failed_actions, goals, graph):
 def compute_affected_actions(
     failed_action, failed_agent_index, fail_type, current_state, G, goals
 ):
+    """Given one failing action, work out which (move, from_pos) actions become forbidden for
+    each agent under the given failure semantics: "topw" (topological weak) blocks the action for
+    every agent; "tops" (topological strong) blocks all moves into/out of the destination cell for
+    every agent unless the destination is a goal; "individual" blocks the action only for the
+    failing agent; "high-level" blocks that same move direction everywhere on the map, only for the
+    failing agent. Returns a tuple of per-agent sets of newly forbidden actions."""
     num_agents = len(current_state)
     affected = [set() for _ in range(num_agents)]
     a_H, from_pos = failed_action
@@ -706,6 +732,9 @@ def compute_affected_actions(
 
 
 def update_non_resilient_soft(current_node, R_down, R_down_sigs, max_k):
+    """Mark current_node non-resilient, then propagate that verdict to every variant of it
+    obtained by dropping one previously-forbidden action and incrementing k by one (capped at
+    max_k), so the search doesn't have to rediscover those as non-resilient independently."""
     state = current_node.state
     k = current_node.k
     failed_actions = current_node.failed_actions

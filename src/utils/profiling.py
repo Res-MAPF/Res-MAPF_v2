@@ -23,17 +23,16 @@ def solve_mapf_with_profiling(mapf_instance, robustness_params, search_params, s
     start_time = time.time()
     
     try:
-        # Run the algorithm
         result = solve_mapf(mapf_instance, robustness_params, search_params, stop_event=stop_event)
     finally:
         profiler.enabled = False
-    
+
     elapsed_time = time.time() - start_time
-    
-    # Extract granular profiling data
+
     granular_data = profiler.get_report_dict()
-    
-    # Convert to stats format compatible with aggregate_granular_stats
+
+    # Reshape into the flat {func_name: {ncalls, cumtime, tottime, mean_time}} format expected
+    # by aggregate_granular_stats
     stats_dict = {}
     for func_name, stat in (granular_data or {}).items():
         if isinstance(stat, dict):
@@ -44,7 +43,6 @@ def solve_mapf_with_profiling(mapf_instance, robustness_params, search_params, s
                 'mean_time': stat.get('mean_time', 0),
             }
     
-    # Add elapsed time
     stats_dict['elapsed_time'] = elapsed_time
     
     return result, stats_dict
@@ -73,21 +71,17 @@ def solve_mapf_with_granular_profiling(mapf_instance, robustness_params, search_
         print("[Profiling] Starting granular profiling...")
     
     try:
-        # Run the algorithm
         result = solve_mapf(mapf_instance, robustness_params, search_params, stop_event=stop_event)
     finally:
         profiler.enabled = False
-    
+
     elapsed_time = time.time() - start_time
-    
+
     if verbose:
         print("[Profiling] Profiling completed. Analyzing bottlenecks...")
-    
-    # Analyze bottlenecks
+
     analyzer = BottleneckAnalyzer()
     analysis = analyzer.analyze()
-    
-    # Add total time
     analysis['elapsed_time'] = elapsed_time
     
     if verbose:
@@ -115,8 +109,7 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
         String with markdown report
     """
     report = []
-    
-    # Input validation
+
     if not isinstance(granular_stats, dict):
         granular_stats = {}
     if not isinstance(analysis, dict):
@@ -124,7 +117,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
     if not isinstance(elapsed_time, (int, float)):
         elapsed_time = 0
     
-    # Helper: Extract base function name (without _iteration_X, _agent_X, _step_X, etc.)
     def get_base_function_name(func_name):
         """Extract base function name removing suffixes like _iteration_X, _agent_X, _step_X"""
         if '_iteration_' in func_name:
@@ -133,7 +125,7 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
             return func_name.split('_step_')[0]
         elif '_agent_' in func_name:
             base = func_name.split('_agent_')[0]
-            # For constraint population functions, return the base name
+            # These specific names are kept as-is instead of getting an '_agent' suffix appended
             if base in ['populate_hard_constraints', 'populate_soft_constraints', 
                        'area_capacity_soft_constraints', 'graph_modification', 'compute_goal_times',
                        'create_root_sipps_node', 'SIPPS_loop', 'build_safe_interval_table',
@@ -144,22 +136,18 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
         else:
             return func_name
     
-    # Helper: Categorize function into component
     def categorize_function(func_name):
         """Categorize a function into ResPlaN, CBS, SIPPS"""
         func_lower = func_name.lower()
-        
-        # ResPlaN components
+
         if ('resplan' in func_lower or 'pop_and_check_signature_in_sets' in func_lower or 
             'macroaction_loop' in func_lower or 'rcheck' in func_lower or 
             'extract_solution_from_predecessors' in func_lower):
             return 'ResPlaN'
-        # Components of conflict-based search (excluding eliminated graph_setup operations)
         elif ('cbs' in func_lower or 'heuristic_computation' in func_lower or 
               'build_solution' in func_lower or 'detect_conflict' in func_lower or 
               'compute_plan_cbs' in func_lower):
             return 'CBS'
-        # Components of low-level search (including root initialization)
         elif ('sipps' in func_lower or 'build_safe_interval' in func_lower or 
               'low_level_search_cbs' in func_lower or 'low_level' in func_lower or
               'populate_hard_constraints' in func_lower or 'populate_soft_constraints' in func_lower or
@@ -174,7 +162,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
         else:
             return 'ResPlaN'
     
-    # Build function call hierarchy
     def get_function_hierarchy():
         """Define the call hierarchy of functions"""
         return {
@@ -269,7 +256,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
             }
         }
     
-    # Aggregation of related functions
     aggregated_stats = {}
     for func_name, stat in granular_stats.items():
         if not isinstance(stat, dict):
@@ -290,13 +276,10 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
         aggregated_stats[base_name]['child_time'] += stat.get('child_time', 0)
         aggregated_stats[base_name]['ncalls'] += stat.get('ncalls', 0)
         
-        # Collect individual times if available
         if stat.get('ncalls', 0) > 0:
-            # Calculate time per single call
             time_per_call = stat.get('cumtime', 0) / stat.get('ncalls', 0)
             aggregated_stats[base_name]['times'].extend([time_per_call] * stat.get('ncalls', 0))
     
-    # Add averages and components
     for base_name, agg in aggregated_stats.items():
         if agg['ncalls'] > 0:
             agg['mean_time'] = agg['cumtime'] / agg['ncalls']
@@ -306,7 +289,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
             agg['mean_exclusive'] = 0
         agg['component'] = categorize_function(base_name)
     
-    # Recalculate component breakdown with aggregate statistics
     components_breakdown = {'ResPlaN': {'time': 0, 'exclusive': 0, 'calls': 0},
                            'CBS': {'time': 0, 'exclusive': 0, 'calls': 0},
                            'SIPPS': {'time': 0, 'exclusive': 0, 'calls': 0}}
@@ -317,7 +299,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
         components_breakdown[component]['exclusive'] += agg['exclusive_time']
         components_breakdown[component]['calls'] += agg['ncalls']
     
-    # Header
     report.append("# Profiling Report - ResPlaN MAPF\n")
     
     if instance_info:
@@ -331,10 +312,8 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
         failure_types_str = ', '.join(failure_types) if failure_types else 'None'
         report.append(f"- **Failure Types**: {failure_types_str}\n")
     
-    # Execution Time with Wall-Clock vs Profiled Analysis
     report.append("## Execution Summary\n")
-    
-    # Calculate totals
+
     total_profiled_inclusive = sum(agg.get('cumtime', 0) for agg in aggregated_stats.values())
     total_profiled_exclusive = sum(agg.get('exclusive_time', 0) for agg in aggregated_stats.values())
     
@@ -342,13 +321,11 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
     report.append(f"- **Total Profiled Time (Inclusive)**: {total_profiled_inclusive:.4f}s (sum of all sections)")
     report.append(f"- **Total Exclusive Time**: {total_profiled_exclusive:.4f}s (no nesting counted)")
     
-    # Calculate unaccounted time
     unaccounted = elapsed_time - total_profiled_exclusive
     unaccounted_pct = (unaccounted / elapsed_time * 100) if elapsed_time > 0 else 0
     
     report.append(f"- **Unaccounted Time**: {unaccounted:.4f}s ({unaccounted_pct:.1f}%)")
     
-    # Overhead analysis
     if total_profiled_exclusive > 0:
         nesting_inflation = total_profiled_inclusive / total_profiled_exclusive
         report.append(f"- **Nesting Inflation Factor**: {nesting_inflation:.2f}× (due to nested profiling sections)\n")
@@ -357,7 +334,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
     
     report.append("*Note: Unaccounted time includes untracked code sections and profiling overhead.*\n")
     
-    # Component Breakdown (with inclusive and exclusive)
     report.append("## Component Breakdown\n")
     report.append("| Component | Time (s) | Exclusive (s) | Calls | Avg Time (ms) | % of Exclusive |")
     report.append("|-----------|----------|---------------|-------|---------------|----------------|")
@@ -374,7 +350,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
         report.append(f"| {component_name} | {time_s:.4f} | {excl_s:.4f} | {calls} | {avg_ms:.2f} | {pct:.1f}% |")
     report.append("")
     
-    # Top 10 Time-Consuming Functions (by exclusive time)
     report.append("## Top 10 Time-Consuming Functions (Exclusive Time)\n")
     report.append("| Function | Calls | Inclusive (s) | Exclusive (s) | Avg Excl (ms) | % of Total |")
     report.append("|----------|-------|----------------|----------------|---------------|------------|")
@@ -397,7 +372,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
             report.append(f"| {func_name} | ERROR | ERROR | ERROR | ERROR | ERROR |")
     report.append("")
     
-    # SIPPS Loop Operation Breakdown
     report.append("## SIPPS Loop Operation Breakdown\n")
     sipps_ops = {k: v for k, v in aggregated_stats.items() if 'sipps_' in k.lower()}
     sipps_ops_sorted = sorted(sipps_ops.items(), key=lambda x: x[1].get('exclusive_time', x[1]['cumtime']), reverse=True)
@@ -417,7 +391,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
             report.append(f"| {op_name} | {calls} | {inc_t:.4f} | {exc_t:.4f} | {avg_ms:.2f} | {pct:.1f}% |")
         report.append("")
     
-    # Performance Notes
     report.append("## Performance Notes\n")
     report.append("**Time Attribution**:\n")
     report.append("- **Inclusive Time**: Total time a section ran (including time in nested children)")
@@ -432,41 +405,34 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
             avg_ms = (exc_t / calls * 1000) if calls > 0 else 0
             report.append(f"- **{op_name}**: {avg_ms:.3f}ms per call ({calls:,} calls)\n")
     
-    # Note about multi-context functions
     report.append("**Note on `low_level_search_cbs`**: This function is called from multiple contexts:")
     report.append("- During root CBS initialization (~15-20% of calls)")
     report.append("- During CBS conflict resolution iterations (~80-85% of calls)")
     report.append("The time reported includes ALL calls aggregated across both contexts.\n")
     
-    # Detailed Granular Statistics (Hierarchical Tree)
     report.append("## Detailed Granular Statistics\n")
     report.append("<pre style=\"overflow-x: auto; white-space: pre;\">")
     
     hierarchy = get_function_hierarchy()
     
-    # Helper: Calculate total time for a node by summing its children
     def get_node_total_time(node_name):
         """Get total time for a node. If node has no direct data, sum its children."""
         if node_name in aggregated_stats:
             return aggregated_stats[node_name]['cumtime']
-        
-        # If not in stats, calculate from children
+
         total = 0
         if node_name in hierarchy and 'children' in hierarchy[node_name]:
             for child_name in hierarchy[node_name]['children']:
                 total += get_node_total_time(child_name)
         return total
     
-    # Helper: Recursively print tree
     def print_tree_node(node_name, parent_name=None, indent=0, prefix="", parent_time=None):
-        """Print a node in the tree with its stats"""
-        # Special handling for pseudo-root nodes like 'ResPlaN'
+        """Recursively print a node and its children in the tree, with per-node stats."""
+        # Pseudo-root: attribute the full wall-clock elapsed_time to ResPlaN (100% of execution)
         if node_name == 'ResPlaN' and parent_name is None:
-            # For pseudo-root ResPlaN as the main root
-            # The time of ResPlaN is the elapsed_time, representing 100% of execution
             report.append(f"{node_name} | Component: ResPlaN | Total: {elapsed_time:.4f}s | % of Total: 100.0%")
-            
-            # Process children directly (resplan_iteration and extract_solution_from_predecessors as siblings)
+
+            # resplan_iteration and extract_solution_from_predecessors are treated as siblings here
             if node_name in hierarchy and 'children' in hierarchy[node_name]:
                 for child_name in hierarchy[node_name]['children']:
                     print_tree_node(child_name, node_name, indent + 1, prefix + "  ", elapsed_time)
@@ -479,33 +445,28 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
                 stats = aggregated_stats[key]
                 break
         
-        # Get total time for this node (from stats or calculated from children)
         if stats:
-            # Node has direct data
             calls = stats['ncalls']
             total = stats['cumtime']
             avg = stats['mean_time'] * 1000 if stats['ncalls'] > 0 else 0
             component = stats['component']
             has_direct_data = True
         else:
-            # Node doesn't have direct data, calculate from children
             total = get_node_total_time(node_name)
             calls = 0
             avg = 0
             component = categorize_function(node_name)  # Still categorize even without direct data
             has_direct_data = False
         
-        # Calculate percentage
         if parent_time and parent_time > 0:
             percentage = (total / parent_time) * 100
             pct_str = f"{percentage:.1f}%"
-        elif parent_name is None:  # Root node (extract_solution_from_predecessors)
+        elif parent_name is None:  # fallback: treat as a root node when no parent time is given
             percentage = (total / elapsed_time) * 100 if elapsed_time > 0 else 0
             pct_str = f"{percentage:.1f}%"
         else:
             pct_str = "N/A"
         
-        # Format and print - all on one line
         connector = "  " * (indent - 1) + "  └─ "
         line = f"{connector}{node_name}"
         
@@ -516,7 +477,6 @@ def generate_profiling_markdown(granular_stats, analysis, elapsed_time, instance
         
         report.append(line)
         
-        # Process children if they exist
         if node_name in hierarchy and 'children' in hierarchy[node_name]:
             for child_name in hierarchy[node_name]['children']:
                 print_tree_node(child_name, node_name, indent + 1, prefix + "  ", total)
@@ -548,21 +508,14 @@ def save_profiling_report(markdown_content, test_set, instance_idx, map_name):
     """
     from pathlib import Path
 
-    # Create directory if it doesn't exist
     reports_dir = Path("data/profiling_reports")
     reports_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Generate unique timestamp
+
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    
-    # Sanitize map name
     safe_map_name = map_name.replace("/", "_").replace("\\", "_")
-    
-    # Name the file
     filename = f"profiling_{test_set}_idx{instance_idx:03d}_{safe_map_name}_{timestamp}.md"
     filepath = reports_dir / filename
-    
-    # Save the file
+
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(markdown_content)
     

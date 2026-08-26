@@ -2,6 +2,10 @@ import customtkinter as ctk
 
 
 class AppState:
+    """Plain holder for everything the main window's widgets are bound to. A single instance is
+    created by MainGUIController and passed through build_layout()/configure_handlers() so both
+    stay in sync without module-level globals; layout_builder also attaches widget references
+    directly onto this same object as it builds them (e.g. state.solve_button)."""
     def __init__(self, root):
         self.agent_list = []
 

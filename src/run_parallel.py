@@ -33,6 +33,8 @@ def _init_worker(out_dir):
 
 
 def _run_one(entry_and_idx):
+    """Worker task: solve one config entry, write its result row to this worker's CSV, and
+    return (idx, success, timed_out) for the pool to aggregate progress from."""
     idx, entry, set_name = entry_and_idx
     # The run_cli/run_cli_v2 import fallback is inside this try/except too, so
     # a missing run_cli_v2.py in the v2 worktree costs one error row instead

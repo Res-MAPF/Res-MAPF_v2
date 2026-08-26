@@ -2,14 +2,18 @@ import sys
 import threading
 
 class ThreadSafeConsoleRedirector:
+    """Replaces sys.stdout/sys.stderr so print() calls made from background solver threads end
+    up in the GUI's console textbox instead of (or in addition to, if not yet ready) a real
+    terminal. Writes are marshaled onto the Tk main thread via root.after(0, ...) under a lock,
+    and buffered if the textbox doesn't exist yet or has been destroyed."""
     def __init__(self, textbox, root):
         self.textbox = textbox
         self.root = root
         self.original_stdout = sys.stdout
         self.original_stderr = sys.stderr
         self.buffer = []
-        self.lock = threading.Lock()  # Add thread safety
-        self._active = True  # Flag to check if redirector is active
+        self.lock = threading.Lock()
+        self._active = True
 
     def write(self, message):
         if not self._active:
@@ -24,7 +28,6 @@ class ThreadSafeConsoleRedirector:
                 self.buffer.append(message)
                 return
 
-            # Check if textbox still exists
             try:
                 if not self.textbox.winfo_exists():
                     self.buffer.append(message)

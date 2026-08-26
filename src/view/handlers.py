@@ -33,6 +33,8 @@ TITLE_RUN_TEST = "Starting Test"
 SIZE_RUN_TEST = "400x500"
 
 def configure_handlers(root, state, console_textbox):
+    """Attach the actual command callbacks to every button layout_builder created (agent
+    add/remove, save/load instance, simulate plan, generate instances, solve, console copy/clear)."""
     def update_agent_display():
         state.agent_listbox.delete(0, "end")
         for i, (start, goal) in enumerate(state.agent_list):
@@ -174,7 +176,6 @@ def configure_handlers(root, state, console_textbox):
                     if stop_event.is_set():
                         timed_out = True
                         print(f"Warning: timeout reached after {elapsed_time:.2f}s")
-                        #messagebox.showinfo("TIMEOUT", f"Timeout reached after {elapsed_time:.2f}s")
                         return
 
                     timed_out = False
@@ -231,6 +232,9 @@ def configure_handlers(root, state, console_textbox):
 
 
 def handle_run_test(root, state):
+    """Open the "Run Test" dialog to pick a saved data/test_instances/*.pkl set plus k/m/h/failure
+    types and an optional "Granular Profiling" mode, then batch-solve every instance in it on a
+    background thread once the user clicks "Start test"."""
     test_win = ctk.CTkToplevel(root)
     test_win.title(TITLE_RUN_TEST)
     test_win.geometry(SIZE_RUN_TEST)
@@ -368,7 +372,6 @@ def handle_run_test(root, state):
                         elapsed_time = time.perf_counter() - start_time
                         stat["elapsed_time"] = elapsed_time
                         print(f"Warning: timeout reached for instance {idx}")
-                        #messagebox.showinfo("TIMEOUT", f"!! Timeout reached for instance {idx}")
                         timeouts += 1
                         timed_out = True
                         sol = None
@@ -397,7 +400,6 @@ def handle_run_test(root, state):
                 timing_stats.append(stat)
                 timed_out_flags.append(timed_out)
 
-        #build_solutions_csv(instances, robustness_params, solutions, selected_set, timing_stats, timed_out_flags)
         print(f"\n !! Test completed: {selected_set} with:\n\tk={robustness_params.k}\n\tm={robustness_params.m}\n\t{robustness_params.h}\n\t{robustness_params.selected_failure_types}\n\n{successes}/{len(instances)} successful, {timeouts} timeouts.")
         if enable_profiling == "Granular Profiling":
             messagebox.showinfo("Test completed", f"{selected_set} with:\n\tk={robustness_params.k}\n\tm={robustness_params.m}\n\t{robustness_params.h}\n\t{robustness_params.selected_failure_types}\n\n{successes}/{len(instances)} successful, {timeouts} timeouts\n\nResults saved in profiling reports.")
@@ -449,7 +451,6 @@ def handle_kill_terminal(console_textbox=None):
 
     # Schedule the restart after a short delay so the UI has time to flush
     try:
-        # Find the root window from the textbox widget
         root = console_textbox.winfo_toplevel() if console_textbox is not None else None
     except Exception:
         root = None
@@ -463,7 +464,6 @@ def handle_kill_terminal(console_textbox=None):
             sys.stderr = sys.__stderr__
         except Exception:
             pass
-        # Destroy the current GUI window
         try:
             if root is not None:
                 root.destroy()

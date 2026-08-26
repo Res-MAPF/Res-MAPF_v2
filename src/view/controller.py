@@ -8,6 +8,9 @@ TITLE = "MAPF Solver"
 WINDOW_SIZE = "1000x600"
 
 class MainGUIController:
+    """Top-level GUI object, instantiated once by src/main.py. Builds the root window and
+    AppState, wires up the layout and its handlers, and installs the console redirector so
+    print() from background solver threads shows up in the GUI."""
     def __init__(self):
         self.console_redirector = None
 
@@ -47,7 +50,6 @@ class MainGUIController:
                 sys.stderr = self.console_redirector
             else:
                 print("Console_textbox not ready, postponing redirect")
-                # Schedule redirect for later
                 self.root.after(100, self._delayed_redirect)
 
         except Exception as e:
