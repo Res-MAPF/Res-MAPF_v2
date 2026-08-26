@@ -2,9 +2,15 @@
 
 ## Version Description
 
-v2 computes resilient multi-agent path-finding plans: given several agents with start and goal positions on a grid map, and a specification of how many action failures the plan must be able to survive during execution — how many failures in total, how many agents they're allowed to affect, and how many failures a single agent can individually suffer — it searches for a joint plan for all agents that stays valid no matter which of the tolerated failures actually happens once execution starts.
+A performance-optimized rewrite of the original Baseline resilient-MAPF solver — same algorithm, same guarantees, computed faster. A GUI lets you set up an instance, solve it, and step through (or simulate failures on) the result.
 
-v2 is a performance-optimized version of the original Baseline implementation of this same idea. The optimization only changes how efficiently the plan is computed — the underlying approach and the kind of plan produced are the same as the Baseline's; nothing about the algorithm itself was restructured. A graphical interface lets you set up an instance, solve it, and then step through — or simulate failures on — the resulting plan.
+**Introduced updates** *(vs. Baseline)*:
+- [x] Incremental safe-interval caching — only recomputes the table entries touched by a changed constraint, instead of rebuilding it from scratch every CBS node
+- [x] Binary-search constraint lookup in the low-level planner
+- [x] Selective per-agent replanning — only the agent whose constraints changed is re-solved; every other agent's path is reused
+- [x] Failure-branch path-suffix reuse in the resilience search, instead of replanning every agent on every branch
+- [x] Precomputed per-agent heuristics and a cheap reachability pre-check to prune infeasible failure branches early
+- [x] Parallel multi-instance batch driver (`run_parallel.py`)
 
 ## Project Overview
 
