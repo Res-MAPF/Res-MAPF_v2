@@ -235,30 +235,25 @@ def resplan_mapf(
                                             ),
                                         )
 
-                                        # Reuse each other agent's suffix path when it doesn't
-                                        # use any action newly forbidden by this failure.
+                                        # Reuse an agent's suffix path only if this failure left
+                                        # its own action set untouched. Under "individual"/
+                                        # "high-level" only the failing agent's affected_actions
+                                        # entry is ever non-empty, so every other agent is safely
+                                        # reused. Under "topw"/"tops" every agent's entry is
+                                        # non-empty (these failure types block the action for the
+                                        # whole team, not just agent j), so every agent must be
+                                        # replanned -- even one whose current suffix happens not
+                                        # to cross the blocked action could still lose an alternate
+                                        # route it needs against a later failure, and that can only
+                                        # be caught by actually re-solving it.
                                         if agent_paths is not None:
                                             suffix_paths = []
                                             for ag in range(N):
-                                                if ag == j:
-                                                    suffix_paths.append(None)  # failing agent always replanned
+                                                if ag == j or affected_actions[ag]:
+                                                    suffix_paths.append(None)  # replanned
                                                 else:
-                                                    new_forbidden_ag = affected_actions[ag]
                                                     path = agent_paths[ag]
-                                                    uses_forbidden = False
-                                                    if new_forbidden_ag:
-                                                        for t in range(i, len(path) - 1):
-                                                            pos = path[t]
-                                                            next_pos = path[t + 1]
-                                                            dr = next_pos[0] - pos[0]
-                                                            dc = next_pos[1] - pos[1]
-                                                            move = HIGH_LEVEL_MOVES.get((dr, dc), "wait")
-                                                            if (move, pos) in new_forbidden_ag:
-                                                                uses_forbidden = True
-                                                                break
-                                                    if uses_forbidden:
-                                                        suffix_paths.append(None)
-                                                    elif i < len(path):
+                                                    if i < len(path):
                                                         suffix_paths.append(path[i:])
                                                     else:
                                                         suffix_paths.append([path[-1]])  # agent at goal
